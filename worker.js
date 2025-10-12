@@ -90,18 +90,20 @@ export default {
         }
 
         const new_text = lines.join('\n');
-
+        let inline_keyboard=[]
+        if(lines.filter(line => line.includes('✅ Confirmado'))){
+            inline_keyboard.push([{ text: '⚠️ Deshacer Confirmar', callback_data: 'undo_confirm' }])
+        }else{
+            inline_keyboard.push([{ text: '✅ Confirmar', callback_data: 'confirm' }])
+        }
+        if(lines.filter(line => line.includes('📦 Entregado'))){
+            inline_keyboard.push([{ text: '⚠️ Deshacer Entregado', callback_data: 'undo_delivered' }])
+        }else{
+            inline_keyboard.push([{ text: '📦 Entregado', callback_data: 'delivered' }])
+        }
+        
         const reply_markup = {
-          inline_keyboard: [
-            [
-              { text: '✅ Confirmar', callback_data: 'confirm' },
-              { text: '⚠️ Deshacer Confirmar', callback_data: 'undo_confirm' },
-            ],
-            [
-              { text: '📦 Entregado', callback_data: 'delivered' },
-              { text: '⚠️ Deshacer Entregado', callback_data: 'undo_delivered' },
-            ],
-          ],
+          inline_keyboard,
         };
 
         await editMessage(chat_id, message_id, new_text, { reply_markup });
