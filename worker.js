@@ -1,7 +1,7 @@
-const TELEGRAM_TOKEN = TELEGRAM_TOKEN_PLACEHOLDER; // en wrangler usar secrets
-const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
+
 // src/index.js
 export default {
+  
   async fetch(request, env, ctx) {
     try {
       // GET → Health check
@@ -24,6 +24,8 @@ export default {
       if (!body) return new Response('No body', { status: 400 });
 
       // --- Telegram Update Handling ---
+      const TELEGRAM_TOKEN = TELEGRAM_TOKEN_PLACEHOLDER; // en wrangler usar secrets
+      const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
       const apiUrl = TELEGRAM_API;
 
       // Función helper para enviar mensajes
@@ -150,3 +152,4 @@ export default {
     }
   },
 };
+
