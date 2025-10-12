@@ -4,38 +4,18 @@ export default {
     const TELEGRAM_TOKEN = "8321034986:AAFsu8feD7r3Se8o9-lPSQdhSnhQY6tAI5E";
     const API = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
 
-    const escapeMarkdownV2 = (text) => text
-      .replace(/_/g, '\\_')
-      .replace(/\*/g, '\\*')
-      .replace(/\[/g, '\\[')
-      .replace(/\]/g, '\\]')
-      .replace(/\(/g, '\\(')
-      .replace(/\)/g, '\\)')
-      .replace(/~/g, '\\~')
-      .replace(/`/g, '\\`')
-      .replace(/>/g, '\\>')
-      .replace(/#/g, '\\#')
-      .replace(/\+/g, '\\+')
-      .replace(/-/g, '\\-')
-      .replace(/=/g, '\\=')
-      .replace(/\|/g, '\\|')
-      .replace(/\{/g, '\\{')
-      .replace(/\}/g, '\\}')
-      .replace(/\./g, '\\.')
-      .replace(/!/g, '\\!');
-
     const sendMessage = (chat_id, text, options = {}) =>
       fetch(`${API}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id, text, parse_mode: 'MarkdownV2', ...options }),
+        body: JSON.stringify({ chat_id, text, ...options }),
       });
 
     const editMessage = (chat_id, message_id, text, options = {}) =>
       fetch(`${API}/editMessageText`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id, message_id, text, parse_mode: 'MarkdownV2', ...options }),
+        body: JSON.stringify({ chat_id, message_id, text, ...options }),
       });
 
     const answerCallback = (callback_query_id, text = '') =>
@@ -69,13 +49,11 @@ export default {
             const commissionValue = +(gain * 0.2).toFixed(2);
             const user = msg.from.username || msg.from.first_name;
 
-            const mention = msg.from.username ? `[@${escapeMarkdownV2(user)}](tg://user?id=${msg.from.id})` : escapeMarkdownV2(user);
-
-            let text = `**Cliente:** ${escapeMarkdownV2(clientName)}\n` +
-                       `**Remesa:** ${sent} ➡️ ${received}\n` +
-                       `**Ganancia:** $${gain}\n` +
-                       `**Comisión:** $${commissionValue} (${mention})\n` +
-                       `**Fecha:** ${new Date().toLocaleDateString('en-GB')}`;
+            let text = `Cliente: ${clientName}\n` +
+                       `Remesa: ${sent} ➡️ ${received}\n` +
+                       `Ganancia: $${gain}\n` +
+                       `Comisión: $${commissionValue} (${user})\n` +
+                       `Fecha: ${new Date().toLocaleDateString('en-GB')}`;
 
             const reply_markup = {
               inline_keyboard: [
@@ -105,18 +83,18 @@ export default {
 
         switch (cb.data) {
           case 'confirm':
-            text = text.replace(/(\*\*Confirmado:\*\*.+\n?)?/g, '');
-            text += `\n**Confirmado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`;
+            text = text.replace(/(Confirmado:.+\n?)?/g, '');
+            text += `\nConfirmado: ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`;
             break;
           case 'undo_confirm':
-            text = text.replace(/\n\*\*Confirmado:\*\*.+/g, '');
+            text = text.replace(/\nConfirmado:.+/g, '');
             break;
           case 'delivered':
-            text = text.replace(/(\*\*Entregado:\*\*.+\n?)?/g, '');
-            text += `\n**Entregado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`;
+            text = text.replace(/(Entregado:.+\n?)?/g, '');
+            text += `\nEntregado: ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`;
             break;
           case 'undo_delivered':
-            text = text.replace(/\n\*\*Entregado:\*\*.+/g, '');
+            text = text.replace(/\nEntregado:.+/g, '');
             break;
         }
 
@@ -133,7 +111,8 @@ export default {
       try {
         const adminChatId = env.ADMIN_CHAT_ID || (body?.message?.chat?.id);
         if (adminChatId) {
-          await sendMessage(adminChatId, `⚠️ *Error en Worker*\n\`\`\`${err.message}\`\`\``, { parse_mode: 'MarkdownV2' });
+          const bodyText = body ? JSON.stringify(body) : 'No body';
+          await sendMessage(adminChatId, `⚠️ Error en Worker\n${err.message}\n\nBody:\n${bodyText}`);
         }
       } catch (e) {
         console.error('No se pudo enviar el error al chat', e);
