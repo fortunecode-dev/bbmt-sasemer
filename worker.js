@@ -94,10 +94,12 @@ export default {
         const reply_markup = {
           inline_keyboard: [
             [
-              line.includes('✅ Confirmado')?{ text: '⚠️ Deshacer Confirmar', callback_data: 'undo_confirm' }:{ text: '✅ Confirmar', callback_data: 'confirm' }
+              { text: '✅ Confirmar', callback_data: 'confirm' },
+              { text: '⚠️ Deshacer Confirmar', callback_data: 'undo_confirm' },
             ],
             [
-              line.includes('📦 Entregado')?{ text: '⚠️ Deshacer Entregado', callback_data: 'undo_delivered' }:{ text: '📦 Entregado', callback_data: 'delivered' },
+              { text: '📦 Entregado', callback_data: 'delivered' },
+              { text: '⚠️ Deshacer Entregado', callback_data: 'undo_delivered' },
             ],
           ],
         };
