@@ -1,0 +1,5 @@
+name = "remesillo"                # cambia el nombre si quieres
+compatibility_date = "2025-10-12"          # usa la fecha actual o reciente
+main = "worker.js"                      # archivo entry-point
+type = "javascript"                        # indica JS (no es obligatorio, pero claro)
+# env = "production"                       # opcional: si usas entornos
