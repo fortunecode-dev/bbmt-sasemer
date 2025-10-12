@@ -1,134 +1,146 @@
 // src/index.js
 export default {
-  async fetch(request, env) {
-    try {
-      if (request.method === 'GET') return new Response('Worker OK', { status: 200 });
-      if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
+    async fetch(request, env, ctx) {
+        try {
+            if (request.method === 'GET') return new Response('Worker OK', { status: 200 });
+            if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
 
-      let body;
-      try { body = await request.json(); } catch { return new Response('Invalid JSON', { status: 400 }); }
-      if (!body) return new Response('No body', { status: 400 });
+            let body;
+            try { body = await request.json(); }
+            catch { return new Response('Invalid JSON', { status: 400 }); }
+            if (!body) return new Response('No body', { status: 400 });
 
-      const TELEGRAM_TOKEN = env.TELEGRAM_TOKEN;
-      if (!TELEGRAM_TOKEN) return new Response('Missing TELEGRAM_TOKEN', { status: 500 });
-      const API = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
+            const TELEGRAM_TOKEN = env.TELEGRAM_TOKEN || "8321034986:AAFsu8feD7r3Se8o9-lPSQdhSnhQY6tAI5E";
+            const API = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
 
-      const tgSendMessage = (chat_id, text, opts = {}) =>
-        fetch(`${API}/sendMessage`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id, text, ...opts }),
-        });
+            const sendMessage = (chat_id, text, options = {}) =>
+                fetch(`${API}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id, text, parse_mode: 'Markdown', ...options }) });
 
-      const tgEditMessage = (chat_id, message_id, text, opts = {}) =>
-        fetch(`${API}/editMessageText`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id, message_id, text, ...opts }),
-        });
+            const editMessage = (chat_id, message_id, text, options = {}) =>
+                fetch(`${API}/editMessageText`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id, message_id, text, parse_mode: 'Markdown', "disable_notification": true, ...options }) });
 
-      const tgAnswerCallback = (callback_query_id, text = '') =>
-        fetch(`${API}/answerCallbackQuery`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ callback_query_id, text }),
-        });
+            const answerCallback = (callback_query_id, text = '') =>
+                fetch(`${API}/answerCallbackQuery`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ callback_query_id, text, "disable_notification": true }) });
 
-      const tgGetChat = (chat_id) =>
-        fetch(`${API}/getChat?chat_id=${encodeURIComponent(chat_id)}`, { method: 'GET' });
+            // --- Procesar mensajes de texto ---
+            if (body.message?.text?.startsWith('Remesa')) {
+                const msg = body.message;
+                const chat_id = msg.chat.id;
+                const user_id = msg.from.id;
+                const username = msg.from.username || msg.from.first_name || 'Usuario';
+                const mention = `[@${username}](tg://user?id=${user_id})`;
 
-      // --- Process message creation (light) ---
-      if (body.message && body.message.text && body.message.text.startsWith('Remesa')) {
-        // Aquí solo reenviamos en formato simple (puedes integrar tu formato actual)
-        const msg = body.message;
-        const chat_id = msg.chat.id;
-        const parts = msg.text.split(' ');
-        if (parts.length >= 3) {
-          const sent = parseFloat(parts[1]) || 0;
-          const given = parseFloat(parts[2]) || 0;
-          const client = parts.slice(3).join(' ') || 'Cliente';
-          const gain = Math.abs(given - sent);
-          const commission = +(gain * 0.2).toFixed(2);
+                const parts = msg.text.split(' ');
+                if (parts.length >= 3) {
+                    const sent = parseFloat(parts[1]);
+                    const given = parseFloat(parts[2]);
+                    const clientName = parts.slice(3).join(' ') || 'Cliente';
+                    const gain = Math.abs(given - sent);
+                    const commission = +(gain * 0.2).toFixed(2);
 
-          const text = `**Cliente:** ${client}\n**Remesa:** ${sent} ➡️ ${given}\n**Ganancia:** $${gain}\n**Comisión:** $${commission}\n**Fecha:** ${new Date().toLocaleDateString('en-GB')}`;
-          const reply_markup = {
-            inline_keyboard: [
-              [{ text: '✅ Confirmar', callback_data: 'confirm' }],
-              [{ text: '📦 Entregado', callback_data: 'delivered' }]
-            ]
-          };
+                    const text = `
+**Confirma ${sent}**
+**Cliente:** ${clientName}
+**Remesa:** ${sent} ➡️ ${given}
+**Ganancia:** $${gain}
+**Comisión:** $${commission} (${mention})
+**Fecha:** ${new Date().toLocaleDateString('en-GB')}`;
 
-          await tgSendMessage(chat_id, text, { reply_markup, parse_mode: 'Markdown' });
+                    const reply_markup = {
+                        inline_keyboard: [
+                            [{ text: '✅ Confirmar', callback_data: 'confirm' }],
+                            [{ text: '📦 Entregado', callback_data: 'delivered' }],
+                        ],
+                    };
+
+                    await sendMessage(chat_id, text, { reply_markup });
+
+                    try {
+                        await fetch(`${API}/deleteMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id, message_id: msg.message_id, "disable_notification": true }) });
+                    } catch (err) { console.log('No se pudo borrar mensaje original', err); }
+                }
+            }
+
+            // --- Procesar callbacks ---
+            if (body.callback_query) {
+                const cb = body.callback_query;
+                const chat_id = cb.message.chat.id;
+                const message_id = cb.message.message_id;
+                let lines = cb.message.text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+                // Normalizar búsqueda de estados
+                const hasConfirmed = lines.some(line => line.includes('✅ Confirmado'));
+                const hasDelivered = lines.some(line => line.includes('📦 Entregado'));
+
+                // Aplicar acción según callback
+                switch (cb.data) {
+                    case 'confirm':
+                        // Si ya estaba confirmado, no duplicar
+                        if (!hasConfirmed) {
+                            // eliminar posible "Confirma X" si existe
+                            lines = lines.filter(line => !/^Confirma\s+\d+/i.test(line));
+                            lines.push(`**✅ Confirmado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
+                        }
+
+                        // Ahora: comprobar si hay message anclado en el chat mediante getChat
+                        try {
+                            const tgGetChat = (chat_id) =>
+                                fetch(`${API}/getChat?chat_id=${encodeURIComponent(chat_id)}`, { method: 'GET' });
+                            const resp = await tgGetChat(chat_id);
+                            const j = await resp.json();
+                            // j.result puede contener pinned_message si existe
+                            const pinnedExists = !!(j && j.result && j.result.pinned_message);
+                            // Escribir "true" o "false" en el chat (puedes cambiar formato)
+                            await sendMessage(chat_id, pinnedExists ? 'true' : 'false');
+
+                        } catch (err) {
+                            console.error('Error consultando getChat:', err);
+                            // opcional: notificar fallo en chat
+                            await sendMessage(chat_id, 'false');
+
+                        }
+
+                        break;
+                    case 'delivered':
+                        if (!hasDelivered) {
+                            lines.push(`**📦 Entregado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
+                        }
+                        break;
+                    case 'undo_confirm':
+                        // quitar solo la línea de confirmado
+                        lines = lines.filter(line => !line.includes('✅ Confirmado'));
+                        break;
+                    case 'undo_delivered':
+                        lines = lines.filter(line => !line.includes('📦 Entregado'));
+                        break;
+                }
+
+                // recomputar estados después del cambio
+                const nowHasConfirmed = lines.some(line => line.includes('✅ Confirmado'));
+                const nowHasDelivered = lines.some(line => line.includes('📦 Entregado'));
+
+                // construir teclado: si ahora está confirmado mostramos "Deshacer Confirmar", si no mostramos "Confirmar"
+                const inline_keyboard = [
+                    nowHasConfirmed
+                        ? [{ text: '⚠️ ❌ Deshacer Confirmar', callback_data: 'undo_confirm' }]
+                        : [{ text: '✅ Confirmar', callback_data: 'confirm' }],
+                    nowHasDelivered
+                        ? [{ text: '⚠️ ❌ Deshacer Entregado', callback_data: 'undo_delivered' }]
+                        : [{ text: '📦 Entregado', callback_data: 'delivered' }],
+                ];
+
+                const new_text = lines.join('\n');
+                const reply_markup = { inline_keyboard };
+
+                await editMessage(chat_id, message_id, new_text, { reply_markup });
+                await answerCallback(cb.id);
+            }
+
+            return new Response(JSON.stringify({ ok: true, body }), { headers: { 'Content-Type': 'application/json' } });
+
+        } catch (err) {
+            console.error(err);
+            return new Response('Internal Error', { status: 500 });
         }
-        return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
-      }
-
-      // --- Process callbacks ---
-      if (body.callback_query) {
-        const cb = body.callback_query;
-        const chat_id = cb.message.chat.id;
-        const message_id = cb.message.message_id;
-        let text = cb.message.text || '';
-
-        if (cb.data === 'confirm') {
-          // Añadir línea de confirmado (si no existe)
-          if (!/Confirmado/.test(text)) {
-            text += `\n**✅ Confirmado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`;
-          }
-
-          // editar mensaje para mostrar confirmado
-          await tgEditMessage(chat_id, message_id, text, { parse_mode: 'Markdown', disable_notification: true });
-
-          // Ahora: comprobar si hay message anclado en el chat mediante getChat
-          try {
-            const resp = await tgGetChat(chat_id);
-            const j = await resp.json();
-            // j.result puede contener pinned_message si existe
-            const pinnedExists = !!(j && j.result && j.result.pinned_message);
-            // Escribir "true" o "false" en el chat (puedes cambiar formato)
-            await tgSendMessage(chat_id, pinnedExists ? 'true' : 'false', { disable_notification: true });
-          } catch (err) {
-            console.error('Error consultando getChat:', err);
-            // opcional: notificar fallo en chat
-            await tgSendMessage(chat_id, 'false', { disable_notification: true });
-          }
-
-          await tgAnswerCallback(cb.id);
-          return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
-        }
-
-        // Mantén tu manejo de otros callbacks (delivered, undo, etc.) aquí...
-        if (cb.data === 'delivered') {
-          if (!/Entregado/.test(text)) {
-            text += `\n**📦 Entregado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`;
-            await tgEditMessage(chat_id, message_id, text, { parse_mode: 'Markdown', disable_notification: true });
-          }
-          await tgAnswerCallback(cb.id);
-          return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
-        }
-
-        // undo handlers example
-        if (cb.data === 'undo_confirm') {
-          text = text.replace(/\n\*\u2705 Confirmado\*:[^\n]*/i, ''); // intentar eliminar la línea Confirmado
-          // fallback: eliminar cualquier línea que contenga "Confirmado"
-          text = text.split('\n').filter(l => !/Confirmado/.test(l)).join('\n');
-          await tgEditMessage(chat_id, message_id, text, { parse_mode: 'Markdown', disable_notification: true });
-          await tgAnswerCallback(cb.id);
-          return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
-        }
-
-        if (cb.data === 'undo_delivered') {
-          text = text.split('\n').filter(l => !/Entregado/.test(l)).join('\n');
-          await tgEditMessage(chat_id, message_id, text, { parse_mode: 'Markdown', disable_notification: true });
-          await tgAnswerCallback(cb.id);
-          return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
-        }
-      }
-
-      return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
-    } catch (err) {
-      console.error(err);
-      return new Response('Internal Error', { status: 500 });
-    }
-  }
+    },
 };
