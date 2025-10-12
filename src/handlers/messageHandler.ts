@@ -1,10 +1,16 @@
-// src/handlers/message.ts
 import { TelegramClient } from '../telegram';
-import { parseNumber, escapeMarkdown } from '../utils';
+import { escapeMarkdown, normalizeUsername, parseNumber } from '../utils';
 
-export async function handleMessage(body: any, env: any) {
-  const TELEGRAM_TOKEN = env.TELEGRAM_TOKEN;
-  const tg = new TelegramClient(TELEGRAM_TOKEN);
+/**
+ * Procesa mensajes que empiezan por "Remesa"
+ * Formato esperado: "Remesa <sent> <given> <client name...>"
+ */
+export async function handleMessage(body: any, tg: TelegramClient) {
+  const msg = body.message;
+  if (!msg?.text) return null;
+  const text = msg.text.trim();
+  if (!text.startsWith('Remesa')) return null;
+  
   const rawText = (body.message.text || body.message.caption || '').trim();
   if (!/^\s*Remesa\s+/i.test(rawText)) return;
 
@@ -18,7 +24,7 @@ export async function handleMessage(body: any, env: any) {
   const commission = +(gain * 0.2).toFixed(2);
   const username = body.message.from?.username || body.message.from?.first_name || String(body.message.from?.id || '');
 
-  const text = `**Confirma ${escapeMarkdown(String(sent))}**
+  const message = `**Confirma ${escapeMarkdown(String(sent))}**
 **Cliente:** ${escapeMarkdown(clientName)}
 **Remesa:** ${escapeMarkdown(String(sent))} ➡️ ${escapeMarkdown(String(given))}
 **Ganancia:** $${escapeMarkdown(gain.toFixed(2))}
@@ -32,7 +38,7 @@ export async function handleMessage(body: any, env: any) {
     ]
   };
 
-  await tg.sendMessage(body.message.chat.id, text, { reply_markup, parse_mode: 'Markdown', disable_notification: true });
+  await tg.sendMessage(body.message.chat.id, message, { reply_markup, parse_mode: 'Markdown', disable_notification: true });
 
   // try delete original (silently)
   try { await tg.deleteMessage(body.message.chat.id, body.message.message_id); } catch (e) { console.log('delete original failed', e); }
