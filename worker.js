@@ -34,7 +34,7 @@ export default {
                 if (parts.length >= 3) {
                     const sent = parseFloat(parts[1]);
                     const given = parseFloat(parts[2]);
-                    const clientName = parts.slice(3).join(' ');
+                    const clientName = parts.slice(3).join(' ') || 'Cliente';
                     const gain = Math.abs(given - sent);
                     const commission = +(gain * 0.2).toFixed(2);
 
@@ -48,12 +48,8 @@ export default {
 
                     const reply_markup = {
                         inline_keyboard: [
-                            [
-                                { text: '✅ Confirmar', callback_data: 'confirm' },
-                            ],
-                            [
-                                { text: '📦 Entregado', callback_data: 'delivered' },
-                            ],
+                            [{ text: '✅ Confirmar', callback_data: 'confirm' }],
+                            [{ text: '📦 Entregado', callback_data: 'delivered' }],
                         ],
                     };
 
@@ -70,40 +66,52 @@ export default {
                 const cb = body.callback_query;
                 const chat_id = cb.message.chat.id;
                 const message_id = cb.message.message_id;
-                let lines = cb.message.text.split('\n');
-                let inline_keyboard = []
+                let lines = cb.message.text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
+                // Normalizar búsqueda de estados
+                const hasConfirmed = lines.some(line => line.includes('✅ Confirmado'));
+                const hasDelivered = lines.some(line => line.includes('📦 Entregado'));
+
+                // Aplicar acción según callback
                 switch (cb.data) {
                     case 'confirm':
-                        lines = lines.filter(line => !line.includes('✅ Confirmado')); // eliminar si ya hay
-                        lines = lines.filter(line => !line.includes('Confirma')); // eliminar si ya hay
-                        lines.push(`**✅ Confirmado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
+                        // Si ya estaba confirmado, no duplicar
+                        if (!hasConfirmed) {
+                            // eliminar posible "Confirma X" si existe
+                            lines = lines.filter(line => !/^Confirma\s+\d+/i.test(line));
+                            lines.push(`**✅ Confirmado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
+                        }
                         break;
                     case 'delivered':
-                        lines = lines.filter(line => !line.includes('📦 Entregado'));
-                        lines.push(`**📦 Entregado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
+                        if (!hasDelivered) {
+                            lines.push(`**📦 Entregado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
+                        }
                         break;
                     case 'undo_confirm':
+                        // quitar solo la línea de confirmado
                         lines = lines.filter(line => !line.includes('✅ Confirmado'));
                         break;
                     case 'undo_delivered':
                         lines = lines.filter(line => !line.includes('📦 Entregado'));
                         break;
                 }
-                if (lines.filter(line => !line.includes('📦 Entregado')))
-                    inline_keyboard.push([{ text: '📦 Entregado', callback_data: 'delivered' }])
-                else
-                    inline_keyboard.push([{ text: '⚠️ Deshacer Entregado', callback_data: 'undo_delivered' }])
-                if (lines.filter(line => !line.includes('✅ Confirmado')))
-                    inline_keyboard.push([{ text: '✅ Confirmar', callback_data: 'confirm' }])
-                else
-                    inline_keyboard.push([{ text: '⚠️ Deshacer Confirmar', callback_data: 'undo_confirm' }])
 
+                // recomputar estados después del cambio
+                const nowHasConfirmed = lines.some(line => line.includes('✅ Confirmado'));
+                const nowHasDelivered = lines.some(line => line.includes('📦 Entregado'));
+
+                // construir teclado: si ahora está confirmado mostramos "Deshacer Confirmar", si no mostramos "Confirmar"
+                const inline_keyboard = [
+                    nowHasConfirmed
+                        ? [{ text: '⚠️ ❌ Deshacer Confirmar', callback_data: 'undo_confirm' }]
+                        : [{ text: '✅ Confirmar', callback_data: 'confirm' }],
+                    nowHasDelivered
+                        ? [{ text: '⚠️ ❌ Deshacer Entregado', callback_data: 'undo_delivered' }]
+                        : [{ text: '📦 Entregado', callback_data: 'delivered' }],
+                ];
 
                 const new_text = lines.join('\n');
-                const reply_markup = {
-                    inline_keyboard,
-                };
+                const reply_markup = { inline_keyboard };
 
                 await editMessage(chat_id, message_id, new_text, { reply_markup });
                 await answerCallback(cb.id);
@@ -117,3 +125,4 @@ export default {
         }
     },
 };
+
