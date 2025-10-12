@@ -3,3 +3,13 @@ compatibility_date = "2025-10-12"          # usa la fecha actual o reciente
 main = "worker.js"                      # archivo entry-point
 type = "javascript"                        # indica JS (no es obligatorio, pero claro)
 # env = "production"                       # opcional: si usas entornos
+# wrangler.toml (wrangler v3.88.0^)
+[observability]
+enabled = false
+
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+
