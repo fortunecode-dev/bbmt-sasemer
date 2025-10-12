@@ -17,10 +17,10 @@ export default {
                 fetch(`${API}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id, text, parse_mode: 'Markdown', ...options }) });
 
             const editMessage = (chat_id, message_id, text, options = {}) =>
-                fetch(`${API}/editMessageText`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id, message_id, text, parse_mode: 'Markdown', ...options }) });
+                fetch(`${API}/editMessageText`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id, message_id, text, parse_mode: 'Markdown', "disable_notification": true, ...options }) });
 
             const answerCallback = (callback_query_id, text = '') =>
-                fetch(`${API}/answerCallbackQuery`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ callback_query_id, text }) });
+                fetch(`${API}/answerCallbackQuery`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ callback_query_id, text, "disable_notification": true }) });
 
             // --- Procesar mensajes de texto ---
             if (body.message?.text?.startsWith('Remesa')) {
@@ -60,7 +60,7 @@ export default {
                     await sendMessage(chat_id, text, { reply_markup });
 
                     try {
-                        await fetch(`${API}/deleteMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id, message_id: msg.message_id }) });
+                        await fetch(`${API}/deleteMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id, message_id: msg.message_id, "disable_notification": true }) });
                     } catch (err) { console.log('No se pudo borrar mensaje original', err); }
                 }
             }
@@ -78,22 +78,27 @@ export default {
                         lines = lines.filter(line => !line.includes('✅ Confirmado')); // eliminar si ya hay
                         lines = lines.filter(line => !line.includes('Confirma')); // eliminar si ya hay
                         lines.push(`**✅ Confirmado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
-                        inline_keyboard.push([{ text: '⚠️ Deshacer Confirmar', callback_data: 'undo_confirm' }])
                         break;
                     case 'delivered':
                         lines = lines.filter(line => !line.includes('📦 Entregado'));
                         lines.push(`**📦 Entregado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
-                        inline_keyboard.push([{ text: '⚠️ Deshacer Entregado', callback_data: 'undo_delivered' }])
                         break;
                     case 'undo_confirm':
                         lines = lines.filter(line => !line.includes('✅ Confirmado'));
-                        inline_keyboard.push([{ text: '✅ Confirmar', callback_data: 'confirm' }])
                         break;
                     case 'undo_delivered':
                         lines = lines.filter(line => !line.includes('📦 Entregado'));
-                        inline_keyboard.push([{ text: '📦 Entregado', callback_data: 'delivered' }])
                         break;
                 }
+                if (lines.filter(line => !line.includes('📦 Entregado')))
+                    inline_keyboard.push([{ text: '📦 Entregado', callback_data: 'delivered' }])
+                else
+                    inline_keyboard.push([{ text: '⚠️ Deshacer Entregado', callback_data: 'undo_delivered' }])
+                if (lines.filter(line => !line.includes('✅ Confirmado')))
+                    inline_keyboard.push([{ text: '✅ Confirmar', callback_data: 'confirm' }])
+                else
+                    inline_keyboard.push([{ text: '⚠️ Deshacer Confirmar', callback_data: 'undo_confirm' }])
+
 
                 const new_text = lines.join('\n');
                 const reply_markup = {
