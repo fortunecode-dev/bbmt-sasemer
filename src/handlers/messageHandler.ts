@@ -1,63 +1,40 @@
+// src/handlers/message.ts
 import { TelegramClient } from '../telegram';
-import { normalizeUsername } from '../utils';
+import { parseNumber, escapeMarkdown } from '../utils';
 
-/**
- * Procesa mensajes que empiezan por "Remesa"
- * Formato esperado: "Remesa <sent> <given> <client name...>"
- */
-export async function handleMessage(body: any, tg: TelegramClient) {
-  const msg = body.message;
-  if (!msg?.text) return null;
-  const text = msg.text.trim();
-  if (!text.startsWith('Remesa')) return null;
+export async function handleMessage(body: any, env: any) {
+  const TELEGRAM_TOKEN = env.TELEGRAM_TOKEN;
+  const tg = new TelegramClient(TELEGRAM_TOKEN);
+  const rawText = (body.message.text || body.message.caption || '').trim();
+  if (!/^\s*Remesa\s+/i.test(rawText)) return;
 
-  const chat_id = msg.chat.id;
-  const user_id = msg.from?.id;
-  const username = normalizeUsername(msg.from);
-  const mention = `[@${username}](tg://user?id=${user_id})`;
+  const parts = rawText.split(/\s+/);
+  if (parts.length < 3) return;
 
-  const parts = text.split(/\s+/);
-  if (parts.length < 3) {
-    await tg.sendMessage(chat_id, 'Formato inválido. Uso: Remesa <sent> <given> <cliente>');
-    return { handled: true };
-  }
-
-  const sent = parseFloat(parts[1]);
-  const given = parseFloat(parts[2]);
-  if (Number.isNaN(sent) || Number.isNaN(given)) {
-    await tg.sendMessage(chat_id, 'Los montos deben ser números.');
-    return { handled: true };
-  }
-
+  const sent = parseNumber(parts[1]);
+  const given = parseNumber(parts[2]);
   const clientName = parts.slice(3).join(' ') || 'Cliente';
   const gain = Math.abs(given - sent);
   const commission = +(gain * 0.2).toFixed(2);
+  const username = body.message.from?.username || body.message.from?.first_name || String(body.message.from?.id || '');
 
-  const replyText = [
-    `**Confirma ${sent}**`,
-    `**Cliente:** ${clientName}`,
-    `**Remesa:** ${sent} ➡️ ${given}`,
-    `**Ganancia:** $${gain}`,
-    `**Comisión:** $${commission} (${mention})`,
-    `**Fecha:** ${new Date().toLocaleDateString('en-GB')}`,
-  ].join('\n');
+  const text = `**Confirma ${escapeMarkdown(String(sent))}**
+**Cliente:** ${escapeMarkdown(clientName)}
+**Remesa:** ${escapeMarkdown(String(sent))} ➡️ ${escapeMarkdown(String(given))}
+**Ganancia:** $${escapeMarkdown(gain.toFixed(2))}
+**Comisión:** $${escapeMarkdown(commission.toFixed(2))} (@${escapeMarkdown(username)})
+**Fecha:** ${escapeMarkdown(new Date(body.message.date * 1000).toLocaleDateString('en-GB'))}`;
 
   const reply_markup = {
     inline_keyboard: [
       [{ text: '✅ Confirmar', callback_data: 'confirm' }],
-      [{ text: '📦 Entregado', callback_data: 'delivered' }],
-    ],
+      [{ text: '📦 Entregado', callback_data: 'delivered' }]
+    ]
   };
 
-  await tg.sendMessage(chat_id, replyText, { reply_markup });
+  await tg.sendMessage(body.message.chat.id, text, { reply_markup, parse_mode: 'Markdown', disable_notification: true });
 
-  // intento borrar el mensaje original, pero no fallo si no se puede
-  try {
-    await tg.deleteMessage(chat_id, msg.message_id);
-  } catch (e) {
-    // log en worker (no ruede todo)
-    console.warn('no se pudo borrar mensaje original', e);
-  }
-
+  // try delete original (silently)
+  try { await tg.deleteMessage(body.message.chat.id, body.message.message_id); } catch (e) { console.log('delete original failed', e); }
   return { handled: true };
 }

@@ -37,4 +37,7 @@ export class TelegramClient {
     const res = await fetch(`${this.apiBase}/getChat?chat_id=${encodeURIComponent(String(chat_id))}`);
     return res.json();
   }
+  async pinChatMessage(chat_id: number | string, message_id: number, opts: Record<string, any> = {}) {
+    return (await this.post('pinChatMessage', { chat_id, message_id, ...opts }));
+  }
 }
