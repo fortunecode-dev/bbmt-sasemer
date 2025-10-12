@@ -142,7 +142,7 @@ export default {
         await answerCallback(cb.id);
       }
 
-      return new Response(JSON.stringify({ ok: true }), {
+      return new Response(JSON.stringify(body), {
         headers: { 'Content-Type': 'application/json' },
       });
 
@@ -152,5 +152,6 @@ export default {
     }
   },
 };
+
 
 
