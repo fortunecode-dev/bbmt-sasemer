@@ -49,19 +49,13 @@ export async function handleCallback(body: any, tg: TelegramClient) {
   const nowHasDelivered = lines.some((l: string) => /📦 Entregado/.test(l));
 
   const inline_keyboard = [
-    nowHasConfirmed
-      ? [{ text: '⚠️ ❌ Deshacer Confirmar', callback_data: 'undo_confirm' }]
-      : [{ text: '✅ Confirmar', callback_data: 'confirm' }],
-    nowHasDelivered
-      ? [{ text: '⚠️ ❌ Deshacer Entregado', callback_data: 'undo_delivered' }]
-      : [{ text: '📦 Entregado', callback_data: 'delivered' }],
+    nowHasConfirmed ? [{ text: '⚠️ ❌ Deshacer Confirmar', callback_data: 'undo_confirm' }] : [{ text: '✅ Confirmar', callback_data: 'confirm' }],
+    nowHasDelivered ? [{ text: '⚠️ ❌ Deshacer Entregado', callback_data: 'undo_delivered' }] : [{ text: '📦 Entregado', callback_data: 'delivered' }],
   ];
 
   const new_text = lines.join('\n');
-  const reply_markup = { inline_keyboard };
 
-  await tg.editMessageText(chat_id, message_id, new_text, { reply_markup });
+  await tg.editMessageText(chat_id, message_id, new_text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard }, disable_notification: true });
   await tg.answerCallbackQuery(cb.id);
-
   return { handled: true };
 }
