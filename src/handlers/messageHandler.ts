@@ -27,8 +27,8 @@ export async function handleMessage(body: any, tg: TelegramClient) {
   const message = `**Confirma ${escapeMarkdown(String(sent))}**
 **Cliente:** ${escapeMarkdown(clientName)}
 **Remesa:** ${escapeMarkdown(String(sent))} ➡️ ${escapeMarkdown(String(given))}
-**Ganancia:** $${escapeMarkdown(gain.toFixed(2))}
-**Comisión:** $${escapeMarkdown(commission.toFixed(2))} (@${escapeMarkdown(username)})
+**Ganancia:** $${gain.toFixed(0)}
+**Comisión:** $${commission.toFixed(2)} (@${escapeMarkdown(username)})
 **Fecha:** ${escapeMarkdown(new Date(body.message.date * 1000).toLocaleDateString('en-GB'))}`;
 
   const reply_markup = {
