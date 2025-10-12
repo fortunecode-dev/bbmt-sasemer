@@ -153,6 +153,7 @@ export async function updatePinnedSummary(
       const header = monthYearHeader || `Informe ${new Date().toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'America/Los_Angeles' })}`;
       const lines: string[] = [];
       lines.push(`${header}`);
+      lines.push('');
       lines.push(`Ganancias: $${totalGain.toFixed(2)}`);
       lines.push(`Comisiones: $${totalCommission.toFixed(2)}`);
       lines.push(`Cantidad de Remesas: ${totalCount}`);

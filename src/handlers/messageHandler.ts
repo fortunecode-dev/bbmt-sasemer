@@ -19,6 +19,7 @@ export async function handleMessage(body: any, tg: TelegramClient) {
 
   const sent = parseNumber(parts[1]);
   const given = parseNumber(parts[2]);
+  if(isNaN(sent)|| isNaN(given)) return null
   const clientName = parts.slice(3).join(' ') || 'Cliente';
   const gain = Math.abs(given - sent);
   const commission = +(gain * 0.2).toFixed(2);
