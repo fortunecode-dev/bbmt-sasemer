@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",                      // Workers soportan ES2020 o superior
+    "module": "esnext",
+    "moduleResolution": "bundler",           // mejor compatibilidad con Wrangler y esbuild
+    "outDir": "dist",
+    "rootDir": "src",
+    "noEmitOnError": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowJs": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "sourceMap": true,
+    "inlineSources": true,
+    "declaration": false
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
