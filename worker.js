@@ -34,10 +34,11 @@ export default {
         if (parts.length >= 3) {
           const sent = parseFloat(parts[1]);
           const given = parseFloat(parts[2]);
-          const gain = Math.abs(given - sent); // siempre positivo
+          const clientName = parts.slice(3).join(' ');
+          const gain = Math.abs(given - sent);
           const commission = +(gain * 0.2).toFixed(2);
 
-          const text = `**Cliente:** ${mention}
+          const text = `**Cliente:** ${clientName}
 **Remesa:** ${sent} ➡️ ${given}
 **Ganancia:** $${gain}
 **Comisión:** $${commission} (${mention})
@@ -47,11 +48,11 @@ export default {
             inline_keyboard: [
               [
                 { text: '✅ Confirmar', callback_data: 'confirm' },
-                { text: '❌ Deshacer Confirmar', callback_data: 'undo_confirm' },
+                { text: '⚠️ Deshacer Confirmar', callback_data: 'undo_confirm' },
               ],
               [
                 { text: '📦 Entregado', callback_data: 'delivered' },
-                { text: '❌ Deshacer Entregado', callback_data: 'undo_delivered' },
+                { text: '⚠️ Deshacer Entregado', callback_data: 'undo_delivered' },
               ],
             ],
           };
@@ -71,21 +72,21 @@ export default {
         const message_id = cb.message.message_id;
         let lines = cb.message.text.split('\n');
 
-        if (cb.data === 'confirm') {
-          if (!lines.some(l => l.includes('✅ Confirmado'))) {
+        switch(cb.data) {
+          case 'confirm':
+            lines = lines.filter(line => !line.includes('✅ Confirmado')); // eliminar si ya hay
             lines.push(`**✅ Confirmado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
-          }
-        } 
-        else if (cb.data === 'delivered') {
-          if (!lines.some(l => l.includes('📦 Entregado'))) {
+            break;
+          case 'delivered':
+            lines = lines.filter(line => !line.includes('📦 Entregado'));
             lines.push(`**📦 Entregado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
-          }
-        }
-        else if (cb.data === 'undo_confirm') {
-          lines = lines.filter(line => !line.includes('✅ Confirmado'));
-        }
-        else if (cb.data === 'undo_delivered') {
-          lines = lines.filter(line => !line.includes('📦 Entregado'));
+            break;
+          case 'undo_confirm':
+            lines = lines.filter(line => !line.includes('✅ Confirmado'));
+            break;
+          case 'undo_delivered':
+            lines = lines.filter(line => !line.includes('📦 Entregado'));
+            break;
         }
 
         const new_text = lines.join('\n');
@@ -94,11 +95,11 @@ export default {
           inline_keyboard: [
             [
               { text: '✅ Confirmar', callback_data: 'confirm' },
-              { text: '❌ Deshacer Confirmar', callback_data: 'undo_confirm' },
+              { text: '⚠️ Deshacer Confirmar', callback_data: 'undo_confirm' },
             ],
             [
               { text: '📦 Entregado', callback_data: 'delivered' },
-              { text: '❌ Deshacer Entregado', callback_data: 'undo_delivered' },
+              { text: '⚠️ Deshacer Entregado', callback_data: 'undo_delivered' },
             ],
           ],
         };
