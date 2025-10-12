@@ -10,105 +10,121 @@ export default {
       catch { return new Response('Invalid JSON', { status: 400 }); }
       if (!body) return new Response('No body', { status: 400 });
 
-      const TELEGRAM_TOKEN = env.TELEGRAM_TOKEN || "8321034986:AAFsu8feD7r3Se8o9-lPSQdhSnhQY6tAI5E";
+      const TELEGRAM_TOKEN = "8321034986:AAFsu8feD7r3Se8o9-lPSQdhSnhQY6tAI5E";
       const API = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
 
+      const escapeMarkdownV2 = (text) => text
+        .replace(/_/g, '\\_')
+        .replace(/\*/g, '\\*')
+        .replace(/\[/g, '\\[')
+        .replace(/\]/g, '\\]')
+        .replace(/\(/g, '\\(')
+        .replace(/\)/g, '\\)')
+        .replace(/~/g, '\\~')
+        .replace(/`/g, '\\`')
+        .replace(/>/g, '\\>')
+        .replace(/#/g, '\\#')
+        .replace(/\+/g, '\\+')
+        .replace(/-/g, '\\-')
+        .replace(/=/g, '\\=')
+        .replace(/\|/g, '\\|')
+        .replace(/\{/g, '\\{')
+        .replace(/\}/g, '\\}')
+        .replace(/\./g, '\\.')
+        .replace(/!/g, '\\!');
+
       const sendMessage = (chat_id, text, options = {}) =>
-        fetch(`${API}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id, text, parse_mode: 'Markdown', ...options }) });
+        fetch(`${API}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id, text, parse_mode: 'MarkdownV2', ...options }),
+        });
 
       const editMessage = (chat_id, message_id, text, options = {}) =>
-        fetch(`${API}/editMessageText`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id, message_id, text, parse_mode: 'Markdown', ...options }) });
+        fetch(`${API}/editMessageText`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id, message_id, text, parse_mode: 'MarkdownV2', ...options }),
+        });
 
       const answerCallback = (callback_query_id, text = '') =>
-        fetch(`${API}/answerCallbackQuery`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ callback_query_id, text }) });
+        fetch(`${API}/answerCallbackQuery`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ callback_query_id, text }),
+        });
 
-      // --- Procesar mensajes de texto ---
-      if (body.message?.text?.startsWith('Remesa')) {
+      // --- Process Message ---
+      if (body.message) {
         const msg = body.message;
         const chat_id = msg.chat.id;
-        const user_id = msg.from.id;
-        const username = msg.from.username || msg.from.first_name || 'Usuario';
-        const mention = `[@${username}](tg://user?id=${user_id})`;
 
-        const parts = msg.text.split(' ');
-        if (parts.length >= 3) {
-          const sent = parseFloat(parts[1]);
-          const given = parseFloat(parts[2]);
-          const clientName = parts.slice(3).join(' ');
-          const gain = Math.abs(given - sent);
-          const commission = +(gain * 0.2).toFixed(2);
+        if (msg.text && msg.text.startsWith('Remesa')) {
+          const parts = msg.text.split(' ');
+          if (parts.length >= 3) {
+            const sent = parseFloat(parts[1]);
+            const received = parseFloat(parts[2]);
+            const clientName = parts.slice(3).join(' ');
+            const gain = received - sent;
+            const commissionValue = +(gain * 0.2).toFixed(2);
+            const user = msg.from.username || msg.from.first_name;
 
-          const text = `**Cliente:** ${clientName}
-**Remesa:** ${sent} ➡️ ${given}
-**Ganancia:** $${gain}
-**Comisión:** $${commission} (${mention})
-**Fecha:** ${new Date().toLocaleDateString('en-GB')}`;
+            const mention = msg.from.username ? `[@${escapeMarkdownV2(user)}](tg://user?id=${msg.from.id})` : escapeMarkdownV2(user);
 
-          const reply_markup = {
-            inline_keyboard: [
-              [
-                { text: '✅ Confirmar', callback_data: 'confirm' },
-                { text: '⚠️ Deshacer Confirmar', callback_data: 'undo_confirm' },
+            let text = `**Cliente:** ${escapeMarkdownV2(clientName)}\n` +
+                       `**Remesa:** ${sent} ➡️ ${received}\n` +
+                       `**Ganancia:** $${gain}\n` +
+                       `**Comisión:** $${commissionValue} (${mention})\n` +
+                       `**Fecha:** ${new Date().toLocaleDateString('en-GB')}`;
+
+            const reply_markup = {
+              inline_keyboard: [
+                [
+                  { text: '✅ Confirmar', callback_data: 'confirm' },
+                  { text: '❌ Deshacer Confirmar', callback_data: 'undo_confirm' },
+                ],
+                [
+                  { text: '📦 Entregado', callback_data: 'delivered' },
+                  { text: '🛑 Deshacer Entregado', callback_data: 'undo_delivered' },
+                ],
               ],
-              [
-                { text: '📦 Entregado', callback_data: 'delivered' },
-                { text: '⚠️ Deshacer Entregado', callback_data: 'undo_delivered' },
-              ],
-            ],
-          };
+            };
 
-          await sendMessage(chat_id, text, { reply_markup });
-
-          try {
-            await fetch(`${API}/deleteMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id, message_id: msg.message_id }) });
-          } catch (err) { console.log('No se pudo borrar mensaje original', err); }
+            await sendMessage(chat_id, text, { reply_markup });
+          }
         }
       }
 
-      // --- Procesar callbacks ---
+      // --- Process Callback ---
       if (body.callback_query) {
         const cb = body.callback_query;
         const chat_id = cb.message.chat.id;
         const message_id = cb.message.message_id;
-        let lines = cb.message.text.split('\n');
 
-        switch(cb.data) {
+        let text = cb.message.text;
+
+        switch (cb.data) {
           case 'confirm':
-            lines = lines.filter(line => !line.includes('✅ Confirmado')); // eliminar si ya hay
-            lines.push(`**✅ Confirmado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
-            break;
-          case 'delivered':
-            lines = lines.filter(line => !line.includes('📦 Entregado'));
-            lines.push(`**📦 Entregado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
+            text = text.replace(/(\*\*Confirmado:\*\*.+\n?)?/g, '');
+            text += `\n**Confirmado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`;
             break;
           case 'undo_confirm':
-            lines = lines.filter(line => !line.includes('✅ Confirmado'));
+            text = text.replace(/\n\*\*Confirmado:\*\*.+/g, '');
+            break;
+          case 'delivered':
+            text = text.replace(/(\*\*Entregado:\*\*.+\n?)?/g, '');
+            text += `\n**Entregado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`;
             break;
           case 'undo_delivered':
-            lines = lines.filter(line => !line.includes('📦 Entregado'));
+            text = text.replace(/\n\*\*Entregado:\*\*.+/g, '');
             break;
         }
 
-        const new_text = lines.join('\n');
-
-        const reply_markup = {
-          inline_keyboard: [
-            [
-              { text: '✅ Confirmar', callback_data: 'confirm' },
-              { text: '⚠️ Deshacer Confirmar', callback_data: 'undo_confirm' },
-            ],
-            [
-              { text: '📦 Entregado', callback_data: 'delivered' },
-              { text: '⚠️ Deshacer Entregado', callback_data: 'undo_delivered' },
-            ],
-          ],
-        };
-
-        await editMessage(chat_id, message_id, new_text, { reply_markup });
+        await editMessage(chat_id, message_id, text);
         await answerCallback(cb.id);
       }
 
-      return new Response(JSON.stringify({ ok: true, body }), { headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
 
     } catch (err) {
       console.error(err);
