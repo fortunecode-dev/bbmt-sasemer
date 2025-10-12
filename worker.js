@@ -24,7 +24,7 @@ export default {
       if (!body) return new Response('No body', { status: 400 });
 
       // --- Telegram Update Handling ---
-      const TELEGRAM_TOKEN = TELEGRAM_TOKEN_PLACEHOLDER; // en wrangler usar secrets
+      const TELEGRAM_TOKEN = "8321034986:AAFsu8feD7r3Se8o9-lPSQdhSnhQY6tAI5E"; // en wrangler usar secrets
       const TELEGRAM_API = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`;
       const apiUrl = TELEGRAM_API;
 
@@ -152,4 +152,5 @@ export default {
     }
   },
 };
+
 
