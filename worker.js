@@ -38,7 +38,9 @@ export default {
                     const gain = Math.abs(given - sent);
                     const commission = +(gain * 0.2).toFixed(2);
 
-                    const text = `**Cliente:** ${clientName}
+                    const text = `
+**Confirma ${sent}**
+**Cliente:** ${clientName}
 **Remesa:** ${sent} ➡️ ${given}
 **Ganancia:** $${gain}
 **Comisión:** $${commission} (${mention})
@@ -69,37 +71,31 @@ export default {
                 const chat_id = cb.message.chat.id;
                 const message_id = cb.message.message_id;
                 let lines = cb.message.text.split('\n');
+                let inline_keyboard = []
 
                 switch (cb.data) {
                     case 'confirm':
                         lines = lines.filter(line => !line.includes('✅ Confirmado')); // eliminar si ya hay
+                        lines = lines.filter(line => !line.includes('Confirma')); // eliminar si ya hay
                         lines.push(`**✅ Confirmado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
+                        inline_keyboard.push([{ text: '⚠️ Deshacer Confirmar', callback_data: 'undo_confirm' }])
                         break;
                     case 'delivered':
                         lines = lines.filter(line => !line.includes('📦 Entregado'));
                         lines.push(`**📦 Entregado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
+                        inline_keyboard.push([{ text: '⚠️ Deshacer Entregado', callback_data: 'undo_delivered' }])
                         break;
                     case 'undo_confirm':
                         lines = lines.filter(line => !line.includes('✅ Confirmado'));
+                        inline_keyboard.push([{ text: '✅ Confirmar', callback_data: 'confirm' }])
                         break;
                     case 'undo_delivered':
                         lines = lines.filter(line => !line.includes('📦 Entregado'));
+                        inline_keyboard.push([{ text: '📦 Entregado', callback_data: 'delivered' }])
                         break;
                 }
 
                 const new_text = lines.join('\n');
-                let inline_keyboard = []
-                if (lines.filter(line => line.includes('✅ Confirmado'))) {
-                    inline_keyboard.push([{ text: '⚠️ Deshacer Confirmar', callback_data: 'undo_confirm' }])
-                } else {
-                    inline_keyboard.push([{ text: '✅ Confirmar', callback_data: 'confirm' }])
-                }
-                if (lines.filter(line => line.includes('📦 Entregado'))) {
-                    inline_keyboard.push([{ text: '⚠️ Deshacer Entregado', callback_data: 'undo_delivered' }])
-                } else {
-                    inline_keyboard.push([{ text: '📦 Entregado', callback_data: 'delivered' }])
-                }
-
                 const reply_markup = {
                     inline_keyboard,
                 };
