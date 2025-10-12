@@ -26,33 +26,38 @@ export default {
       if (body.message?.text?.startsWith('Remesa')) {
         const msg = body.message;
         const chat_id = msg.chat.id;
-        const user = msg.from?.username || msg.from?.first_name || 'Usuario';
-        const parts = msg.text.split(' ');
+        const user_id = msg.from.id;
+        const username = msg.from.username || msg.from.first_name || 'Usuario';
+        const mention = `[@${username}](tg://user?id=${user_id})`;
 
+        const parts = msg.text.split(' ');
         if (parts.length >= 3) {
           const sent = parseFloat(parts[1]);
           const given = parseFloat(parts[2]);
           const gain = Math.abs(given - sent); // siempre positivo
           const commission = +(gain * 0.2).toFixed(2);
 
-          const text = `**Cliente:** ${user}
+          const text = `**Cliente:** ${mention}
 **Remesa:** ${sent} ➡️ ${given}
 **Ganancia:** $${gain}
-**Comisión:** $${commission} (@${user})
+**Comisión:** $${commission} (${mention})
 **Fecha:** ${new Date().toLocaleDateString('en-GB')}`;
 
           const reply_markup = {
             inline_keyboard: [
               [
-                { text: 'Confirmar ✅', callback_data: 'confirm' },
-                { text: 'Entregado 📦', callback_data: 'delivered' },
+                { text: '✅ Confirmar', callback_data: 'confirm' },
+                { text: '❌ Deshacer Confirmar', callback_data: 'undo_confirm' },
+              ],
+              [
+                { text: '📦 Entregado', callback_data: 'delivered' },
+                { text: '❌ Deshacer Entregado', callback_data: 'undo_delivered' },
               ],
             ],
           };
 
           await sendMessage(chat_id, text, { reply_markup });
 
-          // Borrar original
           try {
             await fetch(`${API}/deleteMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id, message_id: msg.message_id }) });
           } catch (err) { console.log('No se pudo borrar mensaje original', err); }
@@ -65,37 +70,45 @@ export default {
         const chat_id = cb.message.chat.id;
         const message_id = cb.message.message_id;
         let lines = cb.message.text.split('\n');
-        let reply_markup = { inline_keyboard: [] };
 
         if (cb.data === 'confirm') {
-          lines.push(`**✅ Confirmado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
-          reply_markup.inline_keyboard = [[{ text: '❌ ⚠️ Deshacer Confirmar ⚠️', callback_data: 'undo_confirm' }]];
-        }
+          if (!lines.some(l => l.includes('✅ Confirmado'))) {
+            lines.push(`**✅ Confirmado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
+          }
+        } 
         else if (cb.data === 'delivered') {
-          lines.push(`**📦 Entregado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
-          reply_markup.inline_keyboard = [[{ text: '❌ ⚠️ Deshacer Entregado ⚠️', callback_data: 'undo_delivered' }]];
+          if (!lines.some(l => l.includes('📦 Entregado'))) {
+            lines.push(`**📦 Entregado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
+          }
         }
         else if (cb.data === 'undo_confirm') {
           lines = lines.filter(line => !line.includes('✅ Confirmado'));
-          reply_markup.inline_keyboard = [[
-            { text: 'Confirmar ✅', callback_data: 'confirm' },
-            { text: 'Entregado 📦', callback_data: 'delivered' },
-          ]];
         }
         else if (cb.data === 'undo_delivered') {
           lines = lines.filter(line => !line.includes('📦 Entregado'));
-          reply_markup.inline_keyboard = [[
-            { text: 'Confirmar ✅', callback_data: 'confirm' },
-            { text: 'Entregado 📦', callback_data: 'delivered' },
-          ]];
         }
 
         const new_text = lines.join('\n');
+
+        const reply_markup = {
+          inline_keyboard: [
+            [
+              { text: '✅ Confirmar', callback_data: 'confirm' },
+              { text: '❌ Deshacer Confirmar', callback_data: 'undo_confirm' },
+            ],
+            [
+              { text: '📦 Entregado', callback_data: 'delivered' },
+              { text: '❌ Deshacer Entregado', callback_data: 'undo_delivered' },
+            ],
+          ],
+        };
+
         await editMessage(chat_id, message_id, new_text, { reply_markup });
         await answerCallback(cb.id);
       }
 
       return new Response(JSON.stringify({ ok: true, body }), { headers: { 'Content-Type': 'application/json' } });
+
     } catch (err) {
       console.error(err);
       return new Response('Internal Error', { status: 500 });
