@@ -15,6 +15,8 @@ export default {
 
             const sendMessage = (chat_id, text, options = {}) =>
                 fetch(`${API}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id, text, parse_mode: 'Markdown', ...options }) });
+            const pinMessage = (chat_id,message_id, options = {}) =>
+                fetch(`${API}/pinChatMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id, text,message_id, parse_mode: 'Markdown', ...options }) });
 
             const editMessage = (chat_id, message_id, text, options = {}) =>
                 fetch(`${API}/editMessageText`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id, message_id, text, parse_mode: 'Markdown', "disable_notification": true, ...options }) });
@@ -66,7 +68,7 @@ export default {
                 const cb = body.callback_query;
                 const chat_id = cb.message.chat.id;
                 const message_id = cb.message.message_id;
-                let lines = (cb.message.text || '').split('\n').map(l => l.trim()).filter(Boolean);
+                let lines = cb.message.text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
 
                 const hasConfirmed = lines.some(l => /✅ Confirmado/.test(l));
                 const hasDelivered = lines.some(l => /📦 Entregado/.test(l));
@@ -93,7 +95,7 @@ export default {
                             const monthYear = now.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'America/Los_Angeles' });
                             const summaryText = `📌 *Resumen acumulado (${monthYear})*\n\n_No hay entradas aún. Este resumen se irá actualizando._`;
                             const tgPinChatMessage = (chat_id, message_id, opts = {}) =>
-                                tgFetch('pinChatMessage', 'POST', { chat_id, message_id, ...opts });
+                                pinMessage(chat_id, message_id, opts);
                             // enviar en modo silencioso
                             const sent = await sendMessage(chat_id, summaryText, { parse_mode: 'Markdown', disable_notification: true });
                             // sent.result.message_id contiene el id del mensaje enviado
@@ -112,7 +114,7 @@ export default {
                     } catch (err) {
                         console.error('Error consultando getChat o creando/pineando summary:', err);
                         // fallback: escribir false silencioso
-                        try { await tgSendMessage(chat_id, 'false', { disable_notification: true }); } catch (e) { console.error(e); }
+                        try { await sendMessage(chat_id, 'false', { disable_notification: true }); } catch (e) { console.error(e); }
                     }
                 }
 
