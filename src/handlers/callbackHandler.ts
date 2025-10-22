@@ -36,16 +36,6 @@ export async function handleCallback(body: any, tg: TelegramClient) {
       const match = remesaLine.match(/(\d+\.?\d*)\s*→/); // captura número antes de la flecha
       if (match) remesaVal = parseFloat(match[1]);
     }
-
-    let visaLineIndex = lines.findIndex(l => /Disponible en Visa/i.test(l));
-    if (visaLineIndex >= 0) {
-      const match = lines[visaLineIndex].match(/(\d+\.?\d*)/);
-      const current = match ? parseFloat(match[1]) : 0;
-      lines[visaLineIndex] = `**Disponible en Visa:** $${(current + remesaVal).toFixed(2)}`;
-    } else if (remesaVal > 0) {
-      lines.push(`**Disponible en Visa:** $${remesaVal.toFixed(2)}`);
-    }
-
     // Extraer ganancias, comisión y usuario
     const gainLine = lines.find((l: string) => /Ganancia/i.test(l)) || '';
     const commLine = lines.find((l: string) => /Comisión/i.test(l)) || '';
@@ -55,7 +45,7 @@ export async function handleCallback(body: any, tg: TelegramClient) {
       (cb.from?.username ? `@${cb.from.username}` : (cb.message?.from?.username ? `@${cb.message.from.username}` : '@unknown'));
 
     try {
-      await updatePinnedSummary(tg, chat_id, mention, gainVal, commVal);
+      await updatePinnedSummary(tg, chat_id, mention, gainVal, commVal, remesaVal);
     } catch (error: any) {
       console.log('updatePinnedSummary', error);
     }
