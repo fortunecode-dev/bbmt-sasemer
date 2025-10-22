@@ -11,17 +11,17 @@ export async function handleMessage(body: any, tg: TelegramClient) {
   const text = msg.text.trim();
   const key = text.split(" ")[0]
   const rawText = (body.message.text || body.message.caption || '').trim();
+  const parts = rawText.split(/\s+/);
   switch (key) {
     case "Remesa":
       if (!/^\s*Remesa\s+/i.test(rawText)) return;
 
-      const remesaParts = rawText.split(/\s+/);
-      if (remesaParts.length < 3) return;
+      if (parts.length < 3) return;
 
-      const sent = parseNumber(remesaParts[1]);
-      const given = parseNumber(remesaParts[2]);
+      const sent = parseNumber(parts[1]);
+      const given = parseNumber(parts[2]);
       if (isNaN(sent) || isNaN(given) || sent == 0) return null
-      const clientName = remesaParts.slice(3).join(' ') || 'Cliente';
+      const clientName = parts.slice(3).join(' ') || 'Cliente';
       const gain = Math.abs(given - sent);
       const commission = +(gain * 0.2).toFixed(2);
       const username = body.message.from?.username || body.message.from?.first_name || String(body.message.from?.id || '');
@@ -46,14 +46,13 @@ export async function handleMessage(body: any, tg: TelegramClient) {
       try { await tg.deleteMessage(body.message.chat.id, body.message.message_id); } catch (e) { console.log('delete original failed', e); }
       return { handled: true };
     case "Ingreso":
-      if (!/^\s*Remesa\s+/i.test(rawText)) return;
+      if (!/^\s*Ingreso\s+/i.test(rawText)) return;
 
-      const parts = rawText.split(/\s+/);
-      if (remesaParts.length < 3) return;
+      if (parts.length < 3) return;
 
-      const income = parseNumber(remesaParts[1]);
+      const income = parseNumber(parts[1]);
       if (isNaN(income) || income == 0) return null
-      const description = remesaParts.slice(2).join(' ') || 'Sin descripción';
+      const description = parts.slice(2).join(' ') || 'Sin descripción';
       const responsable = body.message.from?.username || body.message.from?.first_name || String(body.message.from?.id || '');
 
       const log = `**Entrada $${escapeMarkdown(String(income))}**
@@ -66,6 +65,27 @@ export async function handleMessage(body: any, tg: TelegramClient) {
       // try delete original (silently)
       try { await tg.deleteMessage(body.message.chat.id, body.message.message_id); } catch (e) { console.log('delete original failed', e); }
       return { handled: true };
+
+    case "Gasto":
+      if (!/^\s*Gasto\s+/i.test(rawText)) return;
+      if (parts.length < 3) return;
+
+      const withdraw = parseNumber(parts[1]);
+      if (isNaN(withdraw) || withdraw == 0) return null
+      const withdrawDescription = parts.slice(2).join(' ') || 'Sin descripción';
+      const withdrawResponsable = body.message.from?.username || body.message.from?.first_name || String(body.message.from?.id || '');
+
+      const withdrawLog = `**Salida -$${escapeMarkdown(String(withdraw))}**
+**Descripción:** ${escapeMarkdown(description)}
+**Declarado por:** ${escapeMarkdown(String(responsable))}
+**Fecha:** ${escapeMarkdown(new Date(body.message.date * 1000).toLocaleDateString('en-GB'))}`;
+
+      await tg.sendMessage(body.message.chat.id, withdrawLog, { parse_mode: 'Markdown', disable_notification: true });
+
+      // try delete original (silently)
+      try { await tg.deleteMessage(body.message.chat.id, body.message.message_id); } catch (e) { console.log('delete original failed', e); }
+      return { handled: true };
+
     default:
       return null;
   }
