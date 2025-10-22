@@ -203,7 +203,7 @@ export async function updatePinnedSummary(
     const pinned = (chatResp as any).result.pinned_message;
     const pinnedText = pinned?.text || '';
     const parsed = parsePinned(pinnedText);
-
+    await tg.sendMessage(chat_id,JSON.stringify(parsed))
     // if header month differs from current month -> reset totals and map
     const pinnedHeader = parsed.headerLine || '';
     let headerMonthYear = '';
