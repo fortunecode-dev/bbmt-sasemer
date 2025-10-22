@@ -17,21 +17,36 @@ export async function handleCallback(body: any, tg: TelegramClient) {
   const hasDelivered = lines.some(line => line.includes('📦 Entregado'));
   const hasRegistered = lines.some(line => line.includes('🗂️ Registrado'));
 
-  // handler for noop (used when confirm button becomes inert)
   const doNothing = async () => {
     await tg.answerCallbackQuery(cb.id, 'Ya confirmado');
     return { handled: true };
   };
 
-  // Route callback actions
   if (cb.data === 'confirm') {
-    // If not confirmed yet, add Confirmed line (no undo)
+    // Confirmar si no estaba confirmado
     if (!hasConfirmed) {
       lines = lines.filter((l: string) => !/^Confirma\s+\d+/i.test(l));
       lines.push(`**✅ Confirmado:** ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
     }
 
-    // extract values to update summary
+    // EXTRA: actualizar Disponible en Visa
+    let remesaVal = 0;
+    const remesaLine = lines.find(l => /Remesa/i.test(l));
+    if (remesaLine) {
+      const match = remesaLine.match(/(\d+\.?\d*)\s*→/); // captura número antes de la flecha
+      if (match) remesaVal = parseFloat(match[1]);
+    }
+
+    let visaLineIndex = lines.findIndex(l => /Disponible en Visa/i.test(l));
+    if (visaLineIndex >= 0) {
+      const match = lines[visaLineIndex].match(/(\d+\.?\d*)/);
+      const current = match ? parseFloat(match[1]) : 0;
+      lines[visaLineIndex] = `**Disponible en Visa:** $${(current + remesaVal).toFixed(2)}`;
+    } else if (remesaVal > 0) {
+      lines.push(`**Disponible en Visa:** $${remesaVal.toFixed(2)}`);
+    }
+
+    // Extraer ganancias, comisión y usuario
     const gainLine = lines.find((l: string) => /Ganancia/i.test(l)) || '';
     const commLine = lines.find((l: string) => /Comisión/i.test(l)) || '';
     const gainVal = extractMoneyFromLine(gainLine) || 0;
@@ -39,7 +54,6 @@ export async function handleCallback(body: any, tg: TelegramClient) {
     const mention = extractUsernameFromLine(commLine) ||
       (cb.from?.username ? `@${cb.from.username}` : (cb.message?.from?.username ? `@${cb.message.from.username}` : '@unknown'));
 
-    // update pinned summary (chat acts as DB)
     try {
       await updatePinnedSummary(tg, chat_id, mention, gainVal, commVal);
     } catch (error: any) {
@@ -51,7 +65,6 @@ export async function handleCallback(body: any, tg: TelegramClient) {
   } else if (cb.data === 'undo_delivered') {
     lines = lines.filter((l: string) => !/📦 Entregado/.test(l));
   } else if (cb.data === 'registered') {
-    // mark as registrado (with timestamp and user who pressed)
     if (!hasRegistered) {
       const registrar = cb.from?.username ? `@${cb.from.username}` : (cb.from?.first_name || 'Usuario');
       lines.push(`**🗂️ Registrado:** ${registrar} ${new Date().toLocaleTimeString('en-GB')} ${new Date().toLocaleDateString('en-GB')}`);
@@ -59,35 +72,23 @@ export async function handleCallback(body: any, tg: TelegramClient) {
   } else if (cb.data === 'undo_registered') {
     lines = lines.filter((l: string) => !/🗂️ Registrado/.test(l));
   } else if (cb.data === 'undo_confirm') {
-    // we purposely ignore undo_confirm because Confirmar no debe tener deshacer;
-    // but if someone somehow calls it, remove confirm line (defensive)
     lines = lines.filter((l: string) => !/✅ Confirmado/.test(l));
   } else if (cb.data === 'noop' || cb.data === 'noop_confirm') {
-    // inert callback when confirm button is shown as non-actionable
     return doNothing();
   }
 
-  // recompute states and build keyboard
+  // Recomputar estados para los botones
   const nowHasConfirmed = lines.some((l: string) => /✅ Confirmado/.test(l));
   const nowHasDelivered = lines.some((l: string) => /📦 Entregado/.test(l));
   const nowHasRegistered = lines.some((l: string) => /🗂️ Registrado/.test(l));
 
-  // Build inline keyboard:
-  // - Confirm button is shown but after confirming it becomes inert (no undo)
-  // - Registered has undo
-  // - Delivered has undo
   const inline_keyboard = [
-    // Confirm: if not confirmed -> actionable, otherwise inert labeled "✅ Confirmado"
     nowHasConfirmed
-      ? [{ text: '✅ Confirmado', callback_data: 'noop_confirm' }] // inert
+      ? [{ text: '✅ Confirmado', callback_data: 'noop_confirm' }]
       : [{ text: '✅ Confirmar', callback_data: 'confirm' }],
-
-    // Registered toggle: show Deshacer if registered, else show Registrado
     nowHasRegistered
       ? [{ text: '⚠️ ❌ Deshacer Registrado', callback_data: 'undo_registered' }]
       : [{ text: '🗂️ Registrado', callback_data: 'registered' }],
-
-    // Delivered toggle: show Deshacer if delivered, else show Entregado
     nowHasDelivered
       ? [{ text: '⚠️ ❌ Deshacer Entregado', callback_data: 'undo_delivered' }]
       : [{ text: '📦 Entregado', callback_data: 'delivered' }],
@@ -95,9 +96,9 @@ export async function handleCallback(body: any, tg: TelegramClient) {
 
   const new_text = lines.join('\n');
 
-  // Edit the message and answer the callback
   await tg.editMessageText(chat_id, message_id, new_text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard }, disable_notification: true });
   await tg.answerCallbackQuery(cb.id);
   return { handled: true };
 }
+
 
