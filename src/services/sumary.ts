@@ -187,6 +187,7 @@ export async function updatePinnedSummary(
     if (!pinnedExists) {
       // create new pinned summary with current values
       const map: Record<string, { gain: number; commission: number; count: number }> = {};
+      if(authorMention)
       map[authorMention] = { gain: Number(gainVal || 0), commission: Number(commVal || 0), count: 1 };
       const totalGain = Number(gainVal || 0);
       const totalCommission = Number(commVal || 0);
@@ -214,6 +215,7 @@ export async function updatePinnedSummary(
     if (!headerMonthYear || headerMonthYear !== currentMonthYear) {
       // reset: start new month report
       const map: Record<string, { gain: number; commission: number; count: number }> = {};
+      if(authorMention)
       map[authorMention] = { gain: Number(gainVal || 0), commission: Number(commVal || 0), count: 1 };
       const text = renderPinned(headerLabel, Number(gainVal || 0), Number(commVal || 0), 1, map, parsed.visa);
       // create new pinned message and pin it
@@ -232,7 +234,7 @@ export async function updatePinnedSummary(
     const visa = Number(parsed.visa || 0) + Number(income || 0);
 
     const map = parsed.map;
-    if (!map[authorMention]) map[authorMention] = { gain: 0, commission: 0, count: 0 };
+    if (!map[authorMention] && authorMention) map[authorMention] = { gain: 0, commission: 0, count: 0 };
     map[authorMention].gain += Number(gainVal || 0);
     map[authorMention].commission += Number(commVal || 0);
     map[authorMention].count += 1;

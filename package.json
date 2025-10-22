@@ -1,6 +1,6 @@
 {
   "name": "remesillo",
-  "version": "1.1.3_beta",
+  "version": "1.1.5_beta",
   "private": true,
   "engines": { "node": ">=18" },
   "scripts": {

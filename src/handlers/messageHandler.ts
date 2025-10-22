@@ -1,3 +1,4 @@
+import { updatePinnedSummary } from '../services/sumary';
 import { TelegramClient } from '../telegram';
 import { escapeMarkdown, normalizeUsername, parseNumber } from '../utils';
 
@@ -61,7 +62,7 @@ export async function handleMessage(body: any, tg: TelegramClient) {
 **Fecha:** ${escapeMarkdown(new Date(body.message.date * 1000).toLocaleDateString('en-GB'))}`;
 
       await tg.sendMessage(body.message.chat.id, log, { parse_mode: 'Markdown', disable_notification: true });
-
+      await updatePinnedSummary(tg, body.message.chat.id, "", 0, 0, income)
       // try delete original (silently)
       try { await tg.deleteMessage(body.message.chat.id, body.message.message_id); } catch (e) { console.log('delete original failed', e); }
       return { handled: true };
@@ -81,6 +82,7 @@ export async function handleMessage(body: any, tg: TelegramClient) {
 **Fecha:** ${escapeMarkdown(new Date(body.message.date * 1000).toLocaleDateString('en-GB'))}`;
 
       await tg.sendMessage(body.message.chat.id, withdrawLog, { parse_mode: 'Markdown', disable_notification: true });
+      await updatePinnedSummary(tg, body.message.chat.id, "", 0, 0, withdraw*-1)
 
       // try delete original (silently)
       try { await tg.deleteMessage(body.message.chat.id, body.message.message_id); } catch (e) { console.log('delete original failed', e); }
