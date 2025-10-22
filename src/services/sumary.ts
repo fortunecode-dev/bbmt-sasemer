@@ -203,7 +203,7 @@ export async function updatePinnedSummary(
     const pinned = (chatResp as any).result.pinned_message;
     const pinnedText = pinned?.text || '';
     const parsed = parsePinned(pinnedText);
-    await tg.sendMessage(chat_id,JSON.stringify(parsed))
+    // await tg.sendMessage(chat_id,JSON.stringify(parsed))
     // if header month differs from current month -> reset totals and map
     const pinnedHeader = parsed.headerLine || '';
     let headerMonthYear = '';
@@ -215,7 +215,7 @@ export async function updatePinnedSummary(
       const map: Record<string, { gain: number; commission: number; count: number }> = {};
       if(authorMention)
       map[authorMention] = { gain: Number(gainVal || 0), commission: Number(commVal || 0), count: 1 };
-      const text = renderPinned(headerLabel, Number(gainVal || 0), Number(commVal || 0), 1, map, parsed.visa);
+      const text = renderPinned(headerLabel, Number(gainVal || 0), Number(commVal || 0), 1, map, parsed.visa+income);
       // create new pinned message and pin it
       const sent = await tg.sendMessage(chat_id, text, { parse_mode: 'Markdown', disable_notification: true });
       const newId = (sent as any)?.result?.message_id;
