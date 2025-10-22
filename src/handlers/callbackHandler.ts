@@ -33,7 +33,7 @@ export async function handleCallback(body: any, tg: TelegramClient) {
     let remesaVal = 0;
     const remesaLine = lines.find(l => /Remesa/i.test(l));
     if (remesaLine) {
-      const match = remesaLine.match(/(\d+\.?\d*)\s*→/); // captura número antes de la flecha
+      const match = remesaLine.match(/(\d+\.?\d*)\s*➡️/); // captura número antes de la flecha
       if (match) remesaVal = parseFloat(match[1]);
     }
     // Extraer ganancias, comisión y usuario
