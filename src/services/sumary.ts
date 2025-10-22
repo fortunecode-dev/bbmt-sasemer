@@ -230,15 +230,15 @@ export async function updatePinnedSummary(
     const totalCommission = Number(parsed.totalCommission || 0) + Number(commVal || 0);
     const totalCount = Number(parsed.totalCount || 0) + 1;
     const visa = Number(parsed.visa || 0) + Number(income || 0);
-    await tg.sendMessage(chat_id,JSON.stringify({...parsed,income,visa}))
-
+    
     const map = parsed.map;
     if (!map[authorMention] && authorMention) map[authorMention] = { gain: 0, commission: 0, count: 0 };
     map[authorMention].gain += Number(gainVal || 0);
     map[authorMention].commission += Number(commVal || 0);
     map[authorMention].count += 1;
-
+    
     const newPinnedText = renderPinned(parsed.headerLine || headerLabel, totalGain, totalCommission, totalCount, map, visa);
+    await tg.sendMessage(chat_id,newPinnedText)
 
     // attempt to edit pinned message (only works if bot created it)
     try {
