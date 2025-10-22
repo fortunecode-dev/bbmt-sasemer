@@ -86,7 +86,6 @@ const parsePinned = (text: string) => {
       const g = parseFloat(m[2].replace(',', '.'));
       const c = parseFloat(m[3].replace(',', '.'));
       const cnt = parseInt(m[4], 10) || 0;
-      const v = parseInt(m[5], 10) || 0;
       map[user] = { gain: g, commission: c, count: cnt, };
       totalGain += 0; // totals will be recomputed below to avoid double counting
     }
@@ -103,7 +102,6 @@ const parsePinned = (text: string) => {
       const g = nums[0] ? parseFloat(nums[0].replace(',', '.')) : 0;
       const c = nums[1] ? parseFloat(nums[1].replace(',', '.')) : 0;
       const cnt = nums[2] ? parseInt(nums[2], 10) : 0;
-      const v = nums[3] ? parseInt(nums[3], 10) : 0;
       map[user] = { gain: g, commission: c, count: cnt, };
     }
   }
