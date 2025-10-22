@@ -77,8 +77,8 @@ export async function handleMessage(body: any, tg: TelegramClient) {
       const withdrawResponsable = body.message.from?.username || body.message.from?.first_name || String(body.message.from?.id || '');
 
       const withdrawLog = `**Salida -$${escapeMarkdown(String(withdraw))}**
-**Descripción:** ${escapeMarkdown(description)}
-**Declarado por:** ${escapeMarkdown(String(responsable))}
+**Descripción:** ${escapeMarkdown(withdrawDescription)}
+**Declarado por:** ${escapeMarkdown(String(withdrawResponsable))}
 **Fecha:** ${escapeMarkdown(new Date(body.message.date * 1000).toLocaleDateString('en-GB'))}`;
 
       await tg.sendMessage(body.message.chat.id, withdrawLog, { parse_mode: 'Markdown', disable_notification: true });
