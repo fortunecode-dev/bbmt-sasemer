@@ -185,8 +185,8 @@ export async function updatePinnedSummary(
     if (!pinnedExists) {
       // create new pinned summary with current values
       const map: Record<string, { gain: number; commission: number; count: number }> = {};
-      if(authorMention)
-      map[authorMention] = { gain: Number(gainVal || 0), commission: Number(commVal || 0), count: 1 };
+      if (authorMention)
+        map[authorMention] = { gain: Number(gainVal || 0), commission: Number(commVal || 0), count: 1 };
       const totalGain = Number(gainVal || 0);
       const totalCommission = Number(commVal || 0);
       const totalCount = 1;
@@ -203,7 +203,6 @@ export async function updatePinnedSummary(
     const pinned = (chatResp as any).result.pinned_message;
     const pinnedText = pinned?.text || '';
     const parsed = parsePinned(pinnedText);
-    await tg.sendMessage(chat_id,JSON.stringify({...parsed,income}))
     // if header month differs from current month -> reset totals and map
     const pinnedHeader = parsed.headerLine || '';
     let headerMonthYear = '';
@@ -213,8 +212,8 @@ export async function updatePinnedSummary(
     if (!headerMonthYear || headerMonthYear !== currentMonthYear) {
       // reset: start new month report
       const map: Record<string, { gain: number; commission: number; count: number }> = {};
-      if(authorMention)
-      map[authorMention] = { gain: Number(gainVal || 0), commission: Number(commVal || 0), count: 1 };
+      if (authorMention)
+        map[authorMention] = { gain: Number(gainVal || 0), commission: Number(commVal || 0), count: 1 };
       const text = renderPinned(headerLabel, Number(gainVal || 0), Number(commVal || 0), 1, map, Number(parsed.visa || 0) + Number(income || 0));
       // create new pinned message and pin it
       const sent = await tg.sendMessage(chat_id, text, { parse_mode: 'Markdown', disable_notification: true });
@@ -230,32 +229,36 @@ export async function updatePinnedSummary(
     const totalCommission = Number(parsed.totalCommission || 0) + Number(commVal || 0);
     const totalCount = Number(parsed.totalCount || 0) + 1;
     const visa = Number(parsed.visa || 0) + Number(income || 0);
-    
+
     const map = parsed.map;
     if (!map[authorMention] && authorMention) map[authorMention] = { gain: 0, commission: 0, count: 0 };
     map[authorMention].gain += Number(gainVal || 0);
     map[authorMention].commission += Number(commVal || 0);
     map[authorMention].count += 1;
-    
-    const newPinnedText = renderPinned(parsed.headerLine || headerLabel, totalGain, totalCommission, totalCount, map, visa);
-    await tg.sendMessage(chat_id,newPinnedText)
+    try {
+      const newPinnedText = renderPinned(parsed.headerLine || headerLabel, totalGain, totalCommission, totalCount, map, visa);
+      try {
+        await tg.editMessageText(chat_id, pinned.message_id, newPinnedText, { parse_mode: 'Markdown' });
+      } catch (err) {
+        console.error('Could not edit pinned (maybe not bot message):', err);
+        // fallback: create and pin a fresh summary
+        try {
+          const sent = await tg.sendMessage(chat_id, newPinnedText, { parse_mode: 'Markdown', disable_notification: true });
+          const newId = (sent as any)?.result?.message_id;
+          if (newId) {
+            try { await tg.pinChatMessage(chat_id, newId, { disable_notification: true }); } catch (e) { console.error('Pin fallback failed:', e); }
+          }
+        } catch (e) {
+          console.error('Fallback create/pin failed:', e);
+        }
+      }
+    } catch (e) {
+
+      await tg.sendMessage(chat_id, JSON.stringify(e))
+    }
 
     // attempt to edit pinned message (only works if bot created it)
-    try {
-      await tg.editMessageText(chat_id, pinned.message_id, newPinnedText, { parse_mode: 'Markdown' });
-    } catch (err) {
-      console.error('Could not edit pinned (maybe not bot message):', err);
-      // fallback: create and pin a fresh summary
-      try {
-        const sent = await tg.sendMessage(chat_id, newPinnedText, { parse_mode: 'Markdown', disable_notification: true });
-        const newId = (sent as any)?.result?.message_id;
-        if (newId) {
-          try { await tg.pinChatMessage(chat_id, newId, { disable_notification: true }); } catch (e) { console.error('Pin fallback failed:', e); }
-        }
-      } catch (e) {
-        console.error('Fallback create/pin failed:', e);
-      }
-    }
+
   } catch (err) {
     console.error('updatePinnedSummary error:', err);
   }
