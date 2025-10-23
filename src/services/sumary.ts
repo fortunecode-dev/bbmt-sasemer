@@ -244,7 +244,7 @@ export async function updatePinnedSummary(
     const totalCommission = Number(parsed.totalCommission || 0) + Number(commVal || 0);
     const totalCount = Number(parsed.totalCount || 0) + 1;
     const visa = Number(parsed.visa || 0) + Number(income || 0);
-    tg.sendMessage(chat_id,JSON.stringify({header:parsed.headerLine || headerLabel, totalGain, totalCommission, totalCount, map, visa}))
+    tg.sendMessage(chat_id,JSON.stringify({header:parsed.headerLine || headerLabel, totalGain, totalCommission, totalCount, visa}))
 
     const map = parsed.map;
     if (!map[authorMention] && authorMention) map[authorMention] = { gain: 0, commission: 0, count: 0 };
