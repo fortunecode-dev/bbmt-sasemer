@@ -174,6 +174,8 @@ export async function updatePinnedSummary(
   income: number
 ) {
   try {
+    tg.sendMessage(chat_id,"Inicia funcion updatePinnedSummary")
+
     const chatResp = await tg.getChat(chat_id);
     const pinnedExists = !!(chatResp && (chatResp as any).result && (chatResp as any).result.pinned_message);
 
@@ -181,8 +183,12 @@ export async function updatePinnedSummary(
     const now = new Date();
     const currentMonthYear = `${now.toLocaleString('en-US', { month: 'long', timeZone: 'America/Los_Angeles' })} ${now.getFullYear()}`;
     const headerLabel = `Informe ${currentMonthYear}`;
+    tg.sendMessage(chat_id,"verificar si hay mensaje fijado")
+    tg.sendMessage(chat_id,String(!pinnedExists))
 
     if (!pinnedExists) {
+    tg.sendMessage(chat_id,"Ejecutando por no haber mensaje fijado")
+
       // create new pinned summary with current values
       const map: Record<string, { gain: number; commission: number; count: number }> = {};
       if (authorMention)
@@ -198,11 +204,20 @@ export async function updatePinnedSummary(
       }
       return;
     }
+    tg.sendMessage(chat_id,"Ejecutando por haber mensaje fijado")
+
 
     // pinned exists: parse and update
+    tg.sendMessage(chat_id,"Obteniendo mensaje")
+    
     const pinned = (chatResp as any).result.pinned_message;
+    tg.sendMessage(chat_id,pinned)
     const pinnedText = pinned?.text || '';
+    tg.sendMessage(chat_id,"parseando mensaje")
     const parsed = parsePinned(pinnedText);
+    tg.sendMessage(chat_id,"mensaje parseado")
+    tg.sendMessage(chat_id,JSON.stringify(parsed))
+
     // if header month differs from current month -> reset totals and map
     const pinnedHeader = parsed.headerLine || '';
     let headerMonthYear = '';
@@ -229,6 +244,7 @@ export async function updatePinnedSummary(
     const totalCommission = Number(parsed.totalCommission || 0) + Number(commVal || 0);
     const totalCount = Number(parsed.totalCount || 0) + 1;
     const visa = Number(parsed.visa || 0) + Number(income || 0);
+    tg.sendMessage(chat_id,JSON.stringify({header:parsed.headerLine || headerLabel, totalGain, totalCommission, totalCount, map, visa}))
 
     const map = parsed.map;
     if (!map[authorMention] && authorMention) map[authorMention] = { gain: 0, commission: 0, count: 0 };
