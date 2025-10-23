@@ -235,6 +235,7 @@ export async function updatePinnedSummary(
     map[authorMention].gain += Number(gainVal || 0);
     map[authorMention].commission += Number(commVal || 0);
     map[authorMention].count += 1;
+    tg.sendMessage(chat_id,JSON.stringify({header:parsed.headerLine || headerLabel, totalGain, totalCommission, totalCount, map, visa}))
     try {
       const newPinnedText = renderPinned(parsed.headerLine || headerLabel, totalGain, totalCommission, totalCount, map, visa);
       try {
