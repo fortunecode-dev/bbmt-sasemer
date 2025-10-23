@@ -51,7 +51,7 @@ export async function updatePinnedSummary(
   authorMention: string,
   gainVal: number,
   commVal: number,
-  remesaVal:number
+  forVisa: number
 ) {
   try {
     const chatResp = await tg.getChat(chat_id);
@@ -72,6 +72,7 @@ export async function updatePinnedSummary(
       let totalGain = 0;
       let totalCommission = 0;
       let totalCount = 0;
+      let totalForVisa = 0;
       const map: Record<string, { gain: number; commission: number; count: number }> = {};
 
       // detect header if first line contains "Informe" or month name
@@ -91,6 +92,9 @@ export async function updatePinnedSummary(
       if (lines.length && /Cantidad\s+de\s+Remesas\s*:/i.test(lines[0])) {
         const m = (lines.shift() || '').match(/(\d+)/);
         totalCount = m ? parseInt(m[1], 10) : 0;
+      }
+      if (lines.length && /Disponible\s+en\s+Visa\s*:/i.test(lines[0])) {
+        totalForVisa = parseMoney(lines.shift()!);
       }
 
       // skip blank
@@ -140,7 +144,7 @@ export async function updatePinnedSummary(
         }
       }
 
-      return { headerLine, totalGain, totalCommission, totalCount, map };
+      return { headerLine, totalGain, totalCommission, totalCount, map, totalForVisa };
     };
 
     // util: render final pinned text in requested format
@@ -149,7 +153,8 @@ export async function updatePinnedSummary(
       totalGain: number,
       totalCommission: number,
       totalCount: number,
-      map: Record<string, { gain: number; commission: number; count: number }>
+      map: Record<string, { gain: number; commission: number; count: number }>,
+      forVisa: number
     ) => {
       const header = monthYearHeader || `Informe ${new Date().toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'America/Los_Angeles' })}`;
       const lines: string[] = [];
@@ -157,6 +162,7 @@ export async function updatePinnedSummary(
       lines.push(`Ganancias: $${totalGain.toFixed(2)}`);
       lines.push(`Comisiones: $${totalCommission.toFixed(2)}`);
       lines.push(`Cantidad de Remesas: ${totalCount}`);
+      lines.push(`Disponible en Visa: ${forVisa}`);
       lines.push('');
       lines.push('Gestores (Usuario/Ingresos/Comision/Cantidad):');
       // sort by gain desc
@@ -183,7 +189,7 @@ export async function updatePinnedSummary(
       const totalGain = Number(gainVal || 0);
       const totalCommission = Number(commVal || 0);
       const totalCount = 1;
-      const text = renderPinned(headerLabel, totalGain, totalCommission, totalCount, map);
+      const text = renderPinned(headerLabel, totalGain, totalCommission, totalCount, map, forVisa);
       const sent = await tg.sendMessage(chat_id, text, { parse_mode: 'Markdown', disable_notification: true });
       const pinnedMsgId = (sent as any)?.result?.message_id;
       if (pinnedMsgId) {
@@ -207,7 +213,7 @@ export async function updatePinnedSummary(
       // reset: start new month report
       const map: Record<string, { gain: number; commission: number; count: number }> = {};
       map[authorMention] = { gain: Number(gainVal || 0), commission: Number(commVal || 0), count: 1 };
-      const text = renderPinned(headerLabel, Number(gainVal || 0), Number(commVal || 0), 1, map);
+      const text = renderPinned(headerLabel, Number(gainVal || 0), Number(commVal || 0), 1, map, parsed.totalForVisa + forVisa);
       // create new pinned message and pin it
       const sent = await tg.sendMessage(chat_id, text, { parse_mode: 'Markdown', disable_notification: true });
       const newId = (sent as any)?.result?.message_id;
@@ -220,7 +226,9 @@ export async function updatePinnedSummary(
     // same month: update totals and per-user entry
     const totalGain = Number(parsed.totalGain || 0) + Number(gainVal || 0);
     const totalCommission = Number(parsed.totalCommission || 0) + Number(commVal || 0);
-    const totalCount = Number(parsed.totalCount || 0) + 1;
+    const totalCount = Number(parsed.totalCount || 0) + Number(parsed.totalGain || 0) > 0 ? 1 : 0;
+    const totalForVisa = Number(parsed.totalForVisa || 0) + Number(forVisa || 0);
+
 
     const map = parsed.map;
     if (!map[authorMention]) map[authorMention] = { gain: 0, commission: 0, count: 0 };
@@ -228,7 +236,7 @@ export async function updatePinnedSummary(
     map[authorMention].commission += Number(commVal || 0);
     map[authorMention].count += 1;
 
-    const newPinnedText = renderPinned(parsed.headerLine || headerLabel, totalGain, totalCommission, totalCount, map);
+    const newPinnedText = renderPinned(parsed.headerLine || headerLabel, totalGain, totalCommission, totalCount, map, totalForVisa);
 
     // attempt to edit pinned message (only works if bot created it)
     try {
