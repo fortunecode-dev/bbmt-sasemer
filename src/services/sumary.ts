@@ -55,6 +55,7 @@ export async function updatePinnedSummary(
 ) {
   try {
     const chatResp = await tg.getChat(chat_id);
+    tg.sendMessage(chat_id,JSON.stringify(chatResp))
     const pinnedExists = !!(chatResp && (chatResp as any).result && (chatResp as any).result.pinned_message);
 
     // util: parse money tolerant to commas/dots
