@@ -58,15 +58,17 @@ export async function updatePinnedSummary(
     const pinnedExists = !!(chatResp && (chatResp as any).result && (chatResp as any).result.pinned_message);
     const { result: { pinnedmessage: { text, from: { username }, messageid } } } = chatResp
 
-    if (username != "RemesilloBot") {
-      tg.deleteMessage(chat_id, messageid)
-      const sent = await tg.sendMessage(chat_id, text, { parse_mode: 'Markdown', disable_notification: true });
-      const pinnedMsgId = (sent as any)?.result?.message_id;
-      if (pinnedMsgId) {
-        try { await tg.pinChatMessage(chat_id, pinnedMsgId, { disable_notification: true }); } catch (e) { console.error('pin failed', e); }
+    try {
+      if (username != "RemesilloBot") {
+        tg.deleteMessage(chat_id, messageid)
+        const sent = await tg.sendMessage(chat_id, text, { parse_mode: 'Markdown', disable_notification: true });
+        const pinnedMsgId = (sent as any)?.result?.message_id;
+        if (pinnedMsgId) {
+          try { await tg.pinChatMessage(chat_id, pinnedMsgId, { disable_notification: true }); } catch (e) { tg.sendMessage(chat_id, JSON.stringify(e)) }
+        }
       }
     }
-    
+    catch (e) { tg.sendMessage(chat_id, JSON.stringify(e)) }
     tg.sendMessage(chat_id, JSON.stringify({ chatResp, pinnedExists }))
 
     // util: parse money tolerant to commas/dots
